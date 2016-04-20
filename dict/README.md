@@ -1,18 +1,8 @@
-# uconfig
-一个只包含2%常用的linux系统命令的统一平台配置工具。
+# 该文件夹用于存放各linux发行版的命令树
 
-为了解决很多新手系统工程师，由于对linux系统的不熟悉和发行版众多以至于配置难的问题，而构建的一个中文的统一系统配置器，用于简化和统一日常linux系统的常用操作配置
+结构为：
 
-## v0.1
-
-系统支持列表：
-
-- ubuntu-14.04
-
-
-cli命令树
-
-    - uconfig   # 使用uconfig使用该翻译器
+    - ubuntu 14.04   # 使用uconfig使用该翻译器
         - init      # uconfig的初始化
             - show      # 显示当前的初始配置
         - user      # 用户设置
@@ -23,6 +13,7 @@ cli命令树
             - dns       # 网络域名相关设置
             - iptable   # 防火墙相关设置
         - system    # 系统设置
+            - hostname  # 主机名配置
             - process   # 当前运行程序与进程设置
             - init      # 系统开机启动项
         - software  # 软件设置
@@ -30,5 +21,13 @@ cli命令树
             - install   # 软件安装设置
         - update    # 更新uconfig
 
+## 创建方式为build.sh
 
+echo "输入操作系统名(空格以'-'代替):"
+read SYSTEMNAME
 
+mkdir "$SYSTEMNAME"
+mkdir "$SYSTEMNAME/user"
+mkdir "$SYSTEMNAME/network"
+mkdir "$SYSTEMNAME/system"
+mkdir "$SYSTEMNAME/software"
