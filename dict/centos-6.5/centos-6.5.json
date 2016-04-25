@@ -1,12 +1,18 @@
 {
     "user":{
         "list_user":"cat /etc/passwd|grep -v nologin|grep -v halt|grep -v shutdown|awk -F\":\" '{ print $1\" | \"$4\" | \"$6 }'|more",
-        "add_user":"useradd -d /usr/$USERNAME -m $USERNAME",
+        "add_user":"useradd -d /home/$USERNAME -m $USERNAME",
         "del_user":"userdel -r $USERNAME",
         "chg_passwd":"passwd $USERNAME"
         },
     "system":{
         "change_hostname":"hostname $HOSTNAME;echo $HOSTNAME > /etc/hostname",
         "set_data":"date -s \"$TIME\""
+        },
+    "software":{
+        "sources-backup":"mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup",
+        "sources-change-aliyun":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-6.repo",
+        "sources-change-163":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.163.com/.help/CentOS6-Base-163.repo",
+        "sources-update":"yum clean all;yum makecache"
         }
 }

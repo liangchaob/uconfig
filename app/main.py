@@ -10,6 +10,8 @@ sys.path.append("./")
 reload(sys)
 sys.setdefaultencoding( "utf-8" )
 
+from classset import SetUser, SetSystem, SetSoftware
+
 
 HELPINFO = '''\
     参数如下:
@@ -50,37 +52,9 @@ def exeReturn(command):
     s = s.communicate()[0]
     return s
 
-
-# 用于提取json中指令的函数
-def getDict(sys_id, opt1, opt2):
-    # 读文件
-    infile=open('/opt/uconfig/dict/'+sys_id+'/'+sys_id+'.json','r')
-    content = infile.read()
-    infile.close()
-    # 格式化json
-    content = content.replace("\n","").replace("\t","").replace("    ","")
-    data = json.loads(content)
-    # 提取命令字符并返回
-    cmdstr = data[opt1][opt2]
-    cmd = eval(repr(cmdstr)[1:])
-    return cmd
+     
 
 
-        
-
-
-
-
-
-
-
-
-# 获取一个元组结构的返回值
-# s = subprocess.Popen(cmd_getversion, shell=True, stdout=subprocess.PIPE)
-# s = s.communicate()[0]
-print "*********************************"
-print "当前系统版本为 : " + exeReturn(cmd_getversion)
-print "*********************************"
 
 # 缺少一个正则表达式匹配驱动的判断语句，用于匹配当前系统应该使用的翻译器
 
@@ -92,6 +66,17 @@ elif "CentOS release 6.5" in exeReturn(cmd_getversion):
     SYSID = "centos-6.5"
 else:
     SYSID = "linux"
+
+
+
+# 获取一个元组结构的返回值
+# s = subprocess.Popen(cmd_getversion, shell=True, stdout=subprocess.PIPE)
+# s = s.communicate()[0]
+print "*********************************"
+print "当前系统版本为 : " + SYSID
+print "*********************************"
+
+
 
 
 
@@ -119,6 +104,7 @@ def main():
             print HELPINFO
         elif option=='init':
             print '初始化'
+        # 设置用户
         elif option=='user':
             while True:
                 print '''\
@@ -128,20 +114,72 @@ def main():
                 print '用户名 | 组id | 用户目录'
                 p = SetUser()
                 p.userList()
-                break
                 print '''\
                 用户设置:
                 1.添加用户
                 2.删除用户
-                3.修改用户密码
+                3.重置用户密码
+                4.退出
+                '''
+                # 添加用户
+                option2 = raw_input("输入设置项(1/2/3/4):")
+                if option2 == '1':
+                    new_user = raw_input("输入新的用户名:")
+                    p = SetUser(username = new_user)
+                    p.userAdd()
+                    pass
+                # 删除用户
+                elif option2 == '2':
+                    del_user = raw_input("输入即将删除的用户名:")
+                    p = SetUser(username=del_user)
+                    p.userDel()
+                    pass
+                elif option2 == '3':
+                    reset_passwd = raw_input("输入重置密码的用户名:")
+                    p = SetUser(username=reset_passwd)
+                    p.userReset()
+                    pass                 
+                elif option2 == '4':
+                    break
+                else:
+                    print "输入有误！重新输入"
+
+        # 设置网络
+        elif option=='network':
+            while True:
+                print '''\
+----------------------------------------------
+                '''
+                print '当前网络设置:'
+
+                print '''\
+                用户设置:
+                1.修改ip设置
+                2.修改网卡名称
+                3.设置网卡状态
                 4.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
                 if option2 == '1':
-                    new_user == raw_input("输入新的用户名:")
+                    config_ip = raw_input("输入需要修改的网卡名称:")
+                    print "设置新的ip地址(如果为空则为DHCP):"
+                    print "设置掩码:"
+                    print "设置网关:"
+                    print "设置DNS:"
                     pass
-        elif option=='network':
-            print '网络'
+                elif option2 == '2':
+                    set_eth = raw_input("输入需要修改的网卡名称:")
+                    print "设置新的网卡名称:"
+                    pass
+                elif option2 == '3':
+                    stat_eth = raw_input("输入需要设置的网卡名称:")
+                    print "设置网卡状态(on/off/reset):"
+                    pass
+                elif option2 == '4':
+                    break
+                else:
+                    print "输入有误！重新输入"
+
         elif option=='system':
             while True:
                 print '''\
@@ -191,9 +229,48 @@ def main():
                     break
                 else:
                     print "输入有误！重新输入"
-
+        # 管理软件
         elif option=='software':
-            print '软件'
+            while True:
+                print '''\
+----------------------------------------------
+                '''
+                print '设置当前软件:'
+
+                print '''\
+                用户设置:
+                1.修改软件源
+                2.安装软件
+                3.卸载软件
+                4.退出
+                '''
+                option2 = raw_input("输入设置项(1/2/3/4):")
+                if option2 == '1':
+                    set_source = raw_input("输入网络源选项(1.阿里云/2.163/4.本地光驱):")
+                    pass
+                    if set_source == '1':
+                        source = "阿里云"
+                    elif set_source == '2':
+                        source = "163"
+                    elif set_source == '3':
+                        source = "本地光驱"
+                    else:
+                        source ="无效"
+                    p = SetSoftware(sources=set_source)
+                    p.setSource()
+                    print "当前源设置为:" + source
+                elif option2 == '2':
+                    add_software = raw_input("输入要安装的软件名:")
+                    print "安装期望的软件包"
+                    pass
+                elif option2 == '3':
+                    remove_software = raw_input("输入要卸载的软件名:")
+                    pass
+                elif option2 == '4':
+                    break
+                else:
+                    print "输入有误！重新输入"
+
         elif option=='update':
             print '更新'
         else:
@@ -202,16 +279,6 @@ def main():
     else:
         for filename in sys.argv[1:]:
             readfile(filename)
-
-
-
-
-
-
-
-
-
-
 
 
 # 读文件测试
@@ -224,68 +291,6 @@ def readfile(filename):
             break
         print line, # notice comma
     f.close()
-
-
-# 这里设置一些类，主要用于拼接命令与调用json
-
-# 系统设置类
-class SetUser(object):
-    """用于做系统设置的类"""
-    def __init__(self, useradd = '', userlist = '', userdel ='', chgpasswd =''):
-        self.useradd = useradd
-        self.userlist = userlist
-        self.userdel = userdel
-        self.chgpasswd = chgpasswd
-    # 设置查看用户返回的结果
-    def userList(self):
-        command = getDict(SYSID,'user','list_user')
-        print exeReturn(command)
-    def userAdd(self):
-        command = getDict(SYSID,'user','add_user')
-
-
-
-
-# 系统设置类
-class SetSystem(object):
-    """用于做系统设置的类"""
-    def __init__(self, hostname = '', init = '', time =''):
-        self.hostname = hostname
-        self.init = init
-        self.time = time
-    # 设置主机名
-    def setHost(self):
-        # 更改当前主机名
-        set_var = "HOSTNAME=" + self.hostname +";"
-        # 修改hostname文件
-        command = set_var+getDict(SYSID,'system','change_hostname')
-        exe(command)
-        print "退出后重新登录生效!"
-    # 设置系统开机启动脚本
-    def setSysInit(self):
-        print exeReturn("chkconfig --list | grep -E '3:on|3:启用'")
-        # print exeReturn("egrep -v '^#' /etc/rc.local | grep -v '^$'")
-    # 设置时间脚本
-    def setTime(self):
-        set_var = "TIME=" + self.time +";"
-        command = set_var+getDict(SYSID,'system','set_data')
-        exe(command)
-        # print command
-        # print exeReturn(command)
-
-        print '时间设置完成'
-
-
-        
-
-
-
-
-
-
-
-
-
 
 
 # 运行主函数
