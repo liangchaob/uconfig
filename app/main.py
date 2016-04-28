@@ -10,8 +10,10 @@ sys.path.append("./")
 reload(sys)
 sys.setdefaultencoding( "utf-8" )
 
-from classset import SetUser, SetSystem, SetSoftware
+from classset import SetUser, SetNetwork, SetSystem, SetSoftware
 
+
+VERSION = "v0.1.0"
 
 HELPINFO = '''\
     参数如下:
@@ -99,7 +101,7 @@ def main():
         option=sys.argv[1][1:]
         # 匹配opt选择的各个参数
         if option=='version':
-            print 'Version 0.1'
+            print 'Version '+ VERSION
         elif option=='help':
             print HELPINFO
         elif option=='init':
@@ -151,31 +153,48 @@ def main():
 ----------------------------------------------
                 '''
                 print '当前网络设置:'
-
+                p = SetNetwork()
+                p.ethList()
                 print '''\
                 用户设置:
                 1.修改ip设置
-                2.修改网卡名称
-                3.设置网卡状态
-                4.退出
+                2.设置dns
+                3.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
+                # 设置新的ip
                 if option2 == '1':
-                    config_ip = raw_input("输入需要修改的网卡名称:")
-                    print "设置新的ip地址(如果为空则为DHCP):"
-                    print "设置掩码:"
-                    print "设置网关:"
-                    print "设置DNS:"
-                    pass
+                    config_ethname = raw_input("输入需要修改的网卡名称:")
+                    if config_ethname == '':
+                        pass
+                    else:
+                        config_ip = raw_input("设置新的ip地址(为空则dhcp):")
+                        if config_ip == '':
+                            config_mode = 'dhcp'
+                            p = SetNetwork(config_ethname=config_ethname,config_mode=config_mode)
+                            p.ipSetDhcp()
+                        else:
+                            config_mode = 'static'
+                            config_mask = raw_input("设置掩码:")
+                            config_gateway = raw_input("设置网关:")
+                            p = SetNetwork(config_ethname=config_ethname,config_ip=config_ip,config_mode=config_mode,config_mask=config_mask,config_gateway=config_gateway)
+                            p.ipSetStatic()
+                        config_writein = raw_input("是否立即重启网卡生效(y/n):")
+                        if config_writein == 'y':
+                            p = SetNetwork(config_ethname=config_ethname)
+                            p.ethReset()
+                        elif config_writein == 'n':
+                            pass
+                        else:
+                            pass
+                # 设置dns
                 elif option2 == '2':
-                    set_eth = raw_input("输入需要修改的网卡名称:")
-                    print "设置新的网卡名称:"
-                    pass
+                    set_dns = raw_input("输入dns地址:")
+                    p = SetNetwork(config_dns=set_dns)
+                    p.dnsSet()
+                    print '设置成功!'
+                # 退出
                 elif option2 == '3':
-                    stat_eth = raw_input("输入需要设置的网卡名称:")
-                    print "设置网卡状态(on/off/reset):"
-                    pass
-                elif option2 == '4':
                     break
                 else:
                     print "输入有误！重新输入"
@@ -188,9 +207,10 @@ def main():
                 1.主机名
                 2.时间设置
                 3.开机启动项管理
-                4.管理运行程序
-                5.管理运行进程
-                6.退出
+                4.查看端口占用
+                5.管理运行程序
+                6.管理运行进程
+                7.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4/5/6):")
                 # 主机名选项
@@ -220,10 +240,14 @@ def main():
                     p.setTime()    
                 elif option2 == '3':
                     print '设置开机启动项'
+                    p = SetSystem()
+                    p.setSysInit()
                 elif option2 == '4':
-                    print '管理当前运行程序'
+                    print '查看端口占用'
+                    p = SetSystem()
+                    p.setPort()
                 elif option2 == '5':
-                    print '管理运行进程'
+                    print '查看运行进程'
                 elif option2 == '6':
                     print '退出'
                     break
@@ -246,7 +270,7 @@ def main():
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
                 if option2 == '1':
-                    set_source = raw_input("输入网络源选项(1.阿里云/2.163/4.本地光驱):")
+                    set_source = raw_input("输入网络源选项(1.阿里云/2.163/3.本地光驱):")
                     pass
                     if set_source == '1':
                         source = "阿里云"
@@ -261,7 +285,7 @@ def main():
                     print "当前源设置为:" + source
                 elif option2 == '2':
                     add_software = raw_input("输入要安装的软件名:")
-                    print "安装期望的软件包"
+                    print "安装期望的软件包:"
                     pass
                 elif option2 == '3':
                     remove_software = raw_input("输入要卸载的软件名:")

@@ -48,6 +48,7 @@ def getDict(sys_id, opt1, opt2):
     infile.close()
     # 格式化json
     content = content.replace("\n","").replace("\t","").replace("    ","")
+    # content = content.replace("\t","").replace("    ","")
     data = json.loads(content)
     # 提取命令字符并返回
     cmdstr = data[opt1][opt2]
@@ -100,6 +101,51 @@ class SetUser(object):
 
 
 
+
+# 设置网络
+class SetNetwork(object):
+    """用于做网络设置的类"""
+    def __init__(self, config_ethname='',config_ip='',config_mode='',config_mask='',config_gateway='',config_dns=''):
+        self.config_ethname = config_ethname
+        self.config_ip = config_ip
+        self.config_mode = config_mode
+        self.config_mask = config_mask
+        self.config_gateway = config_gateway
+        self.config_dns = config_dns
+    # 设置主机名
+    def ethList(self):
+        # 列出所有网卡设置
+        command = getDict(SYSID,'network','list_eth')
+        exe(command)
+    # 重启网卡
+    def ethReset(self):
+        set_ethname = "IFACE=" + self.config_ethname + ";"
+        command = set_ethname + getDict(SYSID,'network','reset_eth')
+        exe(command)
+    # 设置dhcp
+    def ipSetDhcp(self):
+        set_ethname = "IFACE=" + self.config_ethname + ";"
+        command = set_ethname + getDict(SYSID,'network','set_dhcp')
+        exe(command)
+
+    # 设置静态ip
+    def ipSetStatic(self):
+        set_ethname = "IFACE=" + self.config_ethname + ";"
+        set_ip = "IPADDR=" + self.config_ip + ";"
+        set_mask = "NETMASK=" + self.config_mask + ";"
+        set_gateway = "GATEWAY=" + self.config_gateway + ";"
+        command = set_ethname + set_ip + set_mask + set_gateway + getDict(SYSID,'network','set_ip')
+        exe(command)
+    # 设置dns
+    def dnsSet(self):
+        set_dns = "DNS="+self.config_dns + ";"
+        command = set_dns + getDict(SYSID,'network','set_dns')
+        exe(command)
+
+
+
+
+
 # 系统设置类
 class SetSystem(object):
     """用于做系统设置的类"""
@@ -115,9 +161,10 @@ class SetSystem(object):
         command = set_var+getDict(SYSID,'system','change_hostname')
         exe(command)
         print "退出后重新登录生效!"
-    # 设置系统开机启动脚本
+    # 设置系统开机启动项目
     def setSysInit(self):
-        print exeReturn("chkconfig --list | grep -E '3:on|3:启用'")
+        command = getDict(SYSID,'system','set_initd')
+        print exe(command)
         # print exeReturn("egrep -v '^#' /etc/rc.local | grep -v '^$'")
     # 设置时间脚本
     def setTime(self):
@@ -125,19 +172,34 @@ class SetSystem(object):
         command = set_var+getDict(SYSID,'system','set_data')
         exe(command)
         print '时间设置完成'
+    # 查看端口占用
+    def setPort(self):
+        command = getDict(SYSID,'system','set_port')
+        exe(command)
+            
+    # 设置正在运行进程
+    def setPs(self):
+        command = getDict(SYSID,'system','set_ps')
+        exe(command)
+        print ''
 
 
-# 系统设置类
+
+# 软件设置类
 class SetSoftware(object):
     """用于做软件安装的类"""
     def __init__(self, sources = ''):
         self.sources = sources
-    def setSource():
-        if self.sources == '1':
-            pass
-        elif self.sources == '2':
-            pass
-        elif self.sources == '3':
+    def setSource(self):
+        command = getDict(SYSID,'software','sources-backup')
+        exe(command)
+        if self.sources == '阿里云':
+            command = getDict(SYSID,'software','sources-change-aliyun')
+            exe(command)
+        elif self.sources == '163':
+            command = getDict(SYSID,'software','sources-change-163')
+            exe(command)
+        elif self.sources == '本地光驱':
             pass
         else:
             pass

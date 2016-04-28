@@ -5,38 +5,55 @@
         "del_user":"userdel -r $USERNAME",
         "chg_passwd":"passwd $USERNAME"
         },
+    "network":{
+        "list_eth":"ifconfig -a",
+        "reset_eth":"ifdown $IFACE;ifup $IFACE",
+        "set_ip":"IP='address '${IPADDR};
+                MASK='netmask '${NETMASK};
+                GATEWAY='gateway '${GATEWAY};
+                ETH='iface '${IFACE}' inet';
+                T1='auto '${IFACE};
+                T2=${ETH}' static';
+                sed -i \"/$ETH/,/auto/{/auto/b;d}\" /etc/network/interfaces;
+                sed -i \"/$T1/a$T2\" /etc/network/interfaces;
+                sed -i \"/$ETH/a$GATEWAY\" /etc/network/interfaces;
+                sed -i \"/$ETH/a$MASK\" /etc/network/interfaces;
+                sed -i \"/$ETH/a$IP\" /etc/network/interfaces;",
+        "set_dhcp":"ETH='iface '${IFACE}' inet';
+                T1='auto '${IFACE};
+                T2=${ETH}' dhcp';
+                sed -i \"/$ETH/,/auto/{/auto/b;d}\" /etc/network/interfaces;
+                sed -i \"/$T1/a$T2\" /etc/network/interfaces;",
+        "set_dns":"echo 'nameserver '${DNS} > /etc/resolv.conf;echo 'search localdomain' >> /etc/resolv.conf;"
+        },
     "system":{
         "change_hostname":"hostname $HOSTNAME;echo $HOSTNAME > /etc/hostname",
-        "set_data":"date -s \"$TIME\""
+        "set_data":"date -s \"$TIME\"",
+        "set_initd":"rcconf",
+        "set_port":"netstat -antp"
         },
     "software":{
         "sources-backup":"mv /etc/apt/sources.list /etc/apt/sources.list_backup",
-        "sources-change-aliyun":"echo '
-# aliyun
-deb http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse
-deb http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse
-deb http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse
-deb http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse
-deb http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse
-deb-src http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse
-deb-src http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse
-deb-src http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse
-deb-src http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse
-deb-src http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse
-        ' > /etc/apt/sources.list",
-        "sources-change-163":"echo '
-# 163
-deb http://mirrors.163.com/ubuntu/ trusty main restricted universe multiverse
-deb http://mirrors.163.com/ubuntu/ trusty-security main restricted universe multiverse
-deb http://mirrors.163.com/ubuntu/ trusty-updates main restricted universe multiverse
-deb http://mirrors.163.com/ubuntu/ trusty-proposed main restricted universe multiverse
-deb http://mirrors.163.com/ubuntu/ trusty-backports main restricted universe multiverse
-deb-src http://mirrors.163.com/ubuntu/ trusty main restricted universe multiverse
-deb-src http://mirrors.163.com/ubuntu/ trusty-security main restricted universe multiverse
-deb-src http://mirrors.163.com/ubuntu/ trusty-updates main restricted universe multiverse
-deb-src http://mirrors.163.com/ubuntu/ trusty-proposed main restricted universe multiverse
-deb-src http://mirrors.163.com/ubuntu/ trusty-backports main restricted universe multiverse
-        ' > /etc/apt/sources.list",
+        "sources-change-aliyun":"echo 'deb http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse' > /etc/apt/sources.list;
+        echo 'deb http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse' >> /etc/apt/sources.list;",
+        "sources-change-163":"echo 'deb http://mirrors.163.com/ubuntu/ trusty main restricted universe multiverse' > /etc/apt/sources.list;
+        echo 'deb http://mirrors.163.com/ubuntu/ trusty-security main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.163.com/ubuntu/ trusty-updates main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.163.com/ubuntu/ trusty-proposed main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb http://mirrors.163.com/ubuntu/ trusty-backports main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.163.com/ubuntu/ trusty main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.163.com/ubuntu/ trusty-security main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.163.com/ubuntu/ trusty-updates main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.163.com/ubuntu/ trusty-proposed main restricted universe multiverse' >> /etc/apt/sources.list;
+        echo 'deb-src http://mirrors.163.com/ubuntu/ trusty-backports main restricted universe multiverse' >> /etc/apt/sources.list;",
         "sources-update":"apt-get update"
     }
 }

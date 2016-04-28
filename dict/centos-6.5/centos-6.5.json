@@ -5,9 +5,27 @@
         "del_user":"userdel -r $USERNAME",
         "chg_passwd":"passwd $USERNAME"
         },
+    "network":{
+        "list_eth":"ifconfig -a",
+        "reset_eth":"ifdown $IFACE;ifup $IFACE",
+        "set_ip":"echo 'DEVICE='${IFACE}''> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'IPADDR='${IPADDR}''>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'NETMASK='${NETMASK}''>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'GATEWAY='${GATEWAY}''>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'ONBOOT=yes'>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'NAME='${IFACE}''>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};",
+        "set_dhcp":"echo 'DEVICE='${IFACE}'' > /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'NM_CONTROLLED=NO' >> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'ONBOOT=yes' >> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'NAME='${IFACE}'' >> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
+            echo 'BOOTPROTO=DHCP' >> /etc/sysconfig/network-scripts/ifcfg-${IFACE};",
+        "set_dns":"echo 'nameserver '${DNS} > /etc/resolv.conf;echo 'search localdomain' >> /etc/resolv.conf;"
+        },
     "system":{
         "change_hostname":"hostname $HOSTNAME;echo $HOSTNAME > /etc/hostname",
-        "set_data":"date -s \"$TIME\""
+        "set_data":"date -s \"$TIME\"",
+        "set_initd":"ntsysv",
+        "set_port":"netstat -antp"
         },
     "software":{
         "sources-backup":"mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup",
