@@ -10,10 +10,11 @@ sys.path.append("./")
 reload(sys)
 sys.setdefaultencoding( "utf-8" )
 
-from classset import SetUser, SetNetwork, SetSystem, SetSoftware
+# 导入view.py
+from view import SetUser, SetNetwork, SetSystem, SetSoftware
 
+# 常量设置
 VERSION = "v0.2"
-
 HELPINFO = '''\
     参数如下:
         1. 用户配置-----负责用户的添加、删除、用户密码、用户权限等设置
