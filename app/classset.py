@@ -22,13 +22,6 @@ import json
 # 取得操作系统版本
 cmd_getversion = "head -n 1 /etc/issue"
 
-
-# 缺少一个正则表达式匹配驱动的判断语句，用于匹配当前系统应该使用的翻译器
-
-
-
-
-# 定义和cli相关的函数，最终要注意放到包里面
 # 直接执行命令行
 def exe(command):
     subprocess.call(command,shell=True)
@@ -39,11 +32,10 @@ def exeReturn(command):
     s = s.communicate()[0]
     return s
 
-
 # 用于提取json中指令的函数
 def getDict(sys_id, opt1, opt2):
     # 读文件
-    infile=open('/opt/uconfig/dict/'+sys_id+'/'+sys_id+'.json','r')
+    infile=open('/opt/uconfig/dict/'+sys_id+'.json','r')
     content = infile.read()
     infile.close()
     # 格式化json
@@ -65,14 +57,7 @@ elif "CentOS release 6.5" in exeReturn(cmd_getversion):
 else:
     SYSID = "linux"
 
-
-
-
-
-
-
 # 这里设置一些类，主要用于拼接命令与调用json
-
 # 系统设置类
 class SetUser(object):
     """用于做系统设置的类"""
@@ -98,9 +83,6 @@ class SetUser(object):
     def userReset(self):
         set_var = "USERNAME=" + self.username +";"
         exe(set_var+getDict(SYSID,'user','chg_passwd'))
-
-
-
 
 # 设置网络
 class SetNetwork(object):
@@ -146,10 +128,6 @@ class SetNetwork(object):
         command = set_dns + getDict(SYSID,'network','set_dns')
         exe(command)
 
-
-
-
-
 # 系统设置类
 class SetSystem(object):
     """用于做系统设置的类"""
@@ -184,8 +162,6 @@ class SetSystem(object):
     def setPs(self):
         command = getDict(SYSID,'system','set_ps')
         exe(command)
-
-
 
 # 软件设置类
 class SetSoftware(object):
@@ -224,6 +200,3 @@ class SetSoftware(object):
         set_var = 'APP=' + self.remove_software + ';'
         command = set_var + getDict(SYSID,'software','remove_software')
         exe(command)
-
-
-

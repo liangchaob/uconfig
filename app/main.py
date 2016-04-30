@@ -12,8 +12,7 @@ sys.setdefaultencoding( "utf-8" )
 
 from classset import SetUser, SetNetwork, SetSystem, SetSoftware
 
-
-VERSION = "v0.1.0"
+VERSION = "v0.2"
 
 HELPINFO = '''\
     参数如下:
@@ -34,12 +33,8 @@ import subprocess
 # 导入json
 import json
 
-# 用户密码模块
-import getpass
-
 # 取得操作系统版本
 cmd_getversion = "head -n 1 /etc/issue"
-
 
 # 定义和cli相关的函数，最终要注意放到包里面
 # 直接执行命令行
@@ -52,12 +47,7 @@ def exeReturn(command):
     s = s.communicate()[0]
     return s
 
-     
-
-
-
 # 缺少一个正则表达式匹配驱动的判断语句，用于匹配当前系统应该使用的翻译器
-
 SYSID="unknow"
 
 if "Ubuntu 14.04" in exeReturn(cmd_getversion):
@@ -67,16 +57,12 @@ elif "CentOS release 6.5" in exeReturn(cmd_getversion):
 else:
     SYSID = "linux"
 
-
-
 # 获取一个元组结构的返回值
 # s = subprocess.Popen(cmd_getversion, shell=True, stdout=subprocess.PIPE)
 # s = s.communicate()[0]
 print "*********************************"
 print "当前系统版本为 : " + SYSID
 print "*********************************"
-
-
 
 # 假设确定好了对应ubuntu的话
 
@@ -265,7 +251,7 @@ def main():
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
                 if option2 == '1':
-                    set_source = raw_input("输入网络源选项(1.阿里云/2.163):")
+                    set_source = raw_input("输入网络更新源(1.阿里云/2.163):")
                     pass
                     if set_source == '1':
                         source = "aliyun"
@@ -294,23 +280,13 @@ def main():
                 else:
                     print "输入有误！重新输入"
             continue
-
         elif option1=='6':
             break
         else:
             print '无该选项!'
         sys.exit()
 
-
-
-
 # 运行主函数
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-        
+   

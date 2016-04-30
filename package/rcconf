@@ -1,0 +1,1500 @@
+#!/usr/bin/perl -w
+#  rcconf
+#                   Copyright (c) 1999-2010 kamop@debian.org
+#
+
+=head1 NAME
+
+rcconf - Debian Runlevel configuration tool
+
+=head1 SYNOPSIS
+
+B<rcconf> [options]
+
+=head1 DESCRIPTION
+
+B<Rcconf> allows you to control which services are started when the
+system boots up or reboots.  It displays a menu of all the services 
+which could be started at boot.  The ones that are configured to
+do so are marked and you can toggle individual services on and off.
+
+B<Rcconf> gets a list of services from /etc/init.d and looks in the
+/etc/rc?.d directories to determine whether each service is on or off.
+B<Rcconf> detects ON state by existence of /etc/rc?.d/"S"NNname.
+
+If the number(NN of /etc/rc?.d/[SK]NNname) is not 20(default), B<rcconf>
+saves the service name and the number in /var/lib/rcconf/services so
+as to be able to restore the service to its original configuration.
+
+If you purge B<rcconf> package by 'dpkg --purge' or 'aptitude purge' or
+others, you may lose off state package due to deletion of
+/var/lib/rcconf/services.
+
+=head1 OPTIONS
+
+=over 3
+
+=item B<--help> 
+
+=over 2
+
+Print out a usage message.
+
+=back
+
+=item B<--dialog>
+
+=over 2
+
+Use dialog command to display menu
+
+=back
+
+=item B<--whiptail>
+
+=over 2
+
+Use whiptail command to display menu
+
+=back
+
+=item B<--notermcheck>
+
+=over 2
+
+Do not set window size by terminal property.
+
+=back
+
+=item B<--on> service[,service,...]
+
+=over 2
+
+Set services to be on.
+This option enables rcconf in command line mode and no select menu
+will be displayed.
+
+=back
+
+=item B<--off> service[,service,...]
+
+=over 2
+
+Set services to be off.
+This option enables rcconf in command line mode and no select menu
+will be displayed.
+
+=back
+
+=item B<--list>
+
+=over 2
+
+List services which includes current status(on/off).
+This option enables rcconf in command line mode and no select menu
+will be displayed. Use B<--expert> option together if you want to
+list all services.
+This result can be used as I<config_file> of B<--config>.
+
+=back
+
+=item B<--config> I<config_file>
+
+=over 2
+
+Set services on/off according to I<config_file>.
+This option enables rcconf in command line mode and no select menu
+will be displayed. The format of this config file is 
+"service_name on" or "service_name off" in each line. Refer to the
+result of B<--list>.
+
+=back
+
+=item B<--expert>
+
+=over 2
+
+Show and select all services for experts. In default, rcconf doesn't
+display system default services as a candidate such as mountall.sh to
+hide unnecessary services for users(but very important for system).
+
+The list of which services are considered expert can be
+found at the line @expertonly in /usr/sbin/rcconf.
+
+=back
+
+=item B<--now>
+
+=over 2
+
+For each service that had the links changed, call the corresponding
+/etc/init.d/service-name script using invoke-rc.d, so the package
+starts or stops immediately. If you do not use this option, the 
+changes will only take effect the next time you reboot (or change
+runlevel).
+
+=back
+
+=item B<--verbose>
+
+=over 2
+
+Output verbose messages.
+
+=back
+
+=back
+
+=head1 Guide File
+
+B<Rcconf> can display some description(Guide) for each services
+with Guide File.
+Guide File is placed on /var/lib/rcconf/guide, and 
+this Guide File does not exist by default. 
+If you want to use Guide, you need to define guides for each services
+in this file.
+
+If you run B<update-rcconf-guide> before B<rcconf>,
+B<rcconf> can use default guides derived from package description.
+B<Update-rcconf-guide> generates the file '/var/lib/rcconf/guide.default' from
+package description(only uses first line of it) using apt-cache.
+B<Rcconf> refers Guides in /var/lib/rcconf/guide before
+/var/lib/rcconf/guide.default.
+
+If you install some packages after executed B<update-rcconf-guide>,
+you need to re-create this file using
+B<update-rcconf-guide> so as to refresh guide.default that includes new
+guides for installed new services.
+
+=head1 Updating /etc/rd?.c/ by the package(KNOWN PROBLEM)
+
+B<Rcconf> saves /etc/rc?.d/[SK]NNname conditions into /var/lib/rcconf/services.
+This file is updated only when there exists /etc/rc?.d/SNNname. It means that
+the condition is not saved if /etc/rc?.d/SNNname doesn't exist for the package.
+
+If the old version of the package creates both /etc/rc?.d/SNNname and
+/etc/rc?.d/KNNname but the newer(updated) version of the package creates only
+/etc/rc?.d/KNNname, some stupid condition occurs. That is, B<rcconf> displays
+this package as OFF state even as the updated package doesn't have
+/etc/rc?.d/SNNname. That is because B<rcconf> can't detect disappearance of
+/etc/rc?.d/SNNname and previous /etc/rc?.d/SNNname condition remains in
+/var/lib/rcconf/services for restore.
+
+In that situation, remove the entry(corresponding package line) from
+/var/lib/rcconf/services.
+
+=head1 FILE
+
+=over 8
+
+=item /var/lib/rcconf/services
+
+The service number data file.
+
+=item /var/lib/rcconf/lock
+
+Lock file.
+
+=item /var/lib/rcconf/guide.default
+
+Guide File update-rcconf-guide generates.
+
+=item /var/lib/rcconf/guide
+
+Guide File user(Administrator) can define.
+
+=back
+
+=head1 SEE ALSO
+
+update-rc.d(8)
+
+update-rcconf-guide(8)
+
+=head1 AUTHOR
+
+Atsushi KAMOSHIDA <kamop@debian.org>
+
+=cut
+
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+
+{
+  local ($^W) = 0;
+  #no warnings;
+  eval "require 'sys/ioctl.ph';";
+}
+
+my $opt_now = "";
+my $opt_help = "";
+my $opt_dialog = "";
+my $opt_whiptail = "";
+my $opt_verbose = "";
+my $opt_notermcheck = "";
+my $opt_expertmode = "";
+my $opt_onlist = "";
+my $opt_offlist = "";
+my $opt_showlist = "";
+my $opt_showrcdf = "";
+my $opt_dryrun = "";
+my $opt_configfile = "";
+my $opt_error = GetOptions ("help|?" => \$opt_help,
+                            "now" => \$opt_now,
+                            "verbose" => \$opt_verbose,
+                            "notermcheck" => \$opt_notermcheck,
+                            "expert" => \$opt_expertmode,
+                            "dialog" => \$opt_dialog,
+                            "on=s" => \$opt_onlist,
+                            "off=s" => \$opt_offlist,
+                            "list" => \$opt_showlist,
+                            "dump" => \$opt_showrcdf,
+                            "config=s" => \$opt_configfile,
+                            "dry-run" => \$opt_dryrun,
+                            "whiptail" => \$opt_whiptail);
+
+my $ETC_DIR = "/etc";
+my $LOCK_FILE = "/var/lock/rcconf";
+my $TMP_FILE = "/tmp/rc-select.$$";
+
+my $DATA_DIR = "/var/lib/rcconf/";
+
+my $NO_EXECUTE = "";
+if ( $opt_dryrun ) {
+  $NO_EXECUTE = "yes";
+}
+if ( $NO_EXECUTE ne "" ) {
+  $DATA_DIR = "/tmp/";
+}
+
+my $DATA_FILE = $DATA_DIR."services";
+
+my $UPDATE_RCD_PATH = "/usr/sbin/update-rc.d";
+my $INVOKERC_BIN = "/usr/sbin/invoke-rc.d";
+
+my $TITLE = "rcconf - Debian Runlevel Configuration tool";
+my $BOX_HEIGHT = 20;
+my $BOX_WIDTH = 70;
+my $BOX_LIST_HEIGHT = 10;
+
+my $DIALOG_BIN = "/bin/whiptail";
+my $DIALOG_SW_ON = "1";
+my $DIALOG_SW_OFF = "0";
+
+my $DEFAULT_RCNUM = 20;
+my @unselects = ("\^\\\.\$", "\^\\\.\\\.\$", "\^rc\$", "\^rcS\$", "\^README\$",
+                  "\^skeleton\$", ".*\\\.dpkg-dist\$", ".*\\\.dpkg-old\$",
+                  ".*\\\.dpkg-bak\$", ".*\\\.sh\$");
+
+my @expertonly = ("bootmisc\.sh", "bootlogd", "checkfs-loop", "checkfs.sh",
+                  "console-screen\.sh",
+                  "checkroot\.sh", "cryptdisks-early", "dns-clean",
+                  "etc-setserial", "glibc\.sh", "halt", "hibernate",
+                  "hostname\.sh", "hwclock\.sh", "hwclockfirst\.sh",
+                  "ifupdown", "ifupdown-clean", "keymap\.sh", "killprocs",
+                  "mountall-bootclean\.sh", "mountall\.sh",
+                  "mountdevsubfs\.sh", "mountkernfs\.sh",
+                  "mountnfs-bootclean\.sh", "mountnfs\.sh", "mountoverflowtmp",
+                  "nviboot",
+                  "mtab\.sh", "networking", "rc\.local", "reboot", "rmnologin",
+                  "screen-cleanup", "sendsigs", "single",
+                  "stop-bootlogd", "stop-bootlogd-single", "udev-mtab",
+                  "umountfs", "umountroot", "urandom"
+                 );
+
+END {
+  &remove_lock();
+  if ( -f $TMP_FILE ) {
+    unlink($TMP_FILE);
+  }
+}
+
+if ( ( ! $opt_error ) || $opt_help ) {
+  pod2usage(1);
+}
+
+my $DEBUG = 0;
+if ( ( exists($ENV{'RCCONF_DEBUG'}) ) && ( $ENV{'RCCONF_DEBUG'} ne '' ) ) {
+  $DEBUG = 1;
+}
+
+if ( $opt_verbose ) {
+  $DEBUG = 1;
+}
+
+my $DEBUG_STRING = "";
+if ( $DEBUG == 0 ) {
+  $DEBUG_STRING = ">/dev/null 2>&1";
+}
+
+my $RUN_SCRIPTS = 0;
+if( ( ( exists($ENV{'RCCONF_NOW'}) ) && ( $ENV{'RCCONF_NOW'} ne '' ) )
+    || ($opt_now) ) {
+  $RUN_SCRIPTS = 1;
+}
+
+if ( ( -r $DATA_FILE ) && ( ! -w $DATA_FILE ) ) {
+  print STDERR "Can't write $DATA_FILE.\n";
+  print STDERR "Check permission of $DATA_FILE before rcconf.\n";
+  exit 1;
+}
+
+my $OUTPUT_FILE = "";
+if ( ( exists($ENV{'RCCONF_SAVE'}) ) && ( $ENV{'RCCONF_SAVE'} ne '' ) ) {
+  if ( open(SAVE, "> ".$ENV{'RCCONF_SAVE'} ) ) {
+    $OUTPUT_FILE = $ENV{'RCCONF_SAVE'};
+  }
+}
+
+my $DEFAULT_GUIDE_FILE = $DATA_DIR."guide.default";
+my $GUIDE_FILE = $DATA_DIR."guide";
+if ( ( exists($ENV{'RCCONF_GUIDE'}) ) && ( $ENV{'RCCONF_GUIDE'} ne '' ) ) {
+  $GUIDE_FILE = $ENV{'RCCONF_GUIDE'};
+}
+
+## Decide dialog command
+if ( ( exists($ENV{'DIALOG_BIN'}) ) && ( $ENV{'DIALOG_BIN'} ne '' ) ) {
+  $DIALOG_BIN = $ENV{'DIALOG_BIN'};
+}
+if ( ( exists($ENV{'DIALOG_SW_ON'}) ) && ( $ENV{'DIALOG_SW_ON'} ne '' ) ) {
+  $DIALOG_SW_ON = $ENV{'DIALOG_SW_ON'};
+}
+if ( ( exists($ENV{'DIALOG_SW_OFF'}) ) && ( $ENV{'DIALOG_SW_OFF'} ne '' ) ) {
+  $DIALOG_SW_OFF = $ENV{'DIALOG_SW_OFF'};
+}
+
+if ( $opt_whiptail ) {
+  $DIALOG_BIN = "/bin/whiptail";
+  $DIALOG_SW_ON = "1";
+  $DIALOG_SW_OFF = "0";
+}
+
+if ( $opt_dialog ) {
+  $DIALOG_BIN = "/usr/bin/dialog";
+  $DIALOG_SW_ON = "on";
+  $DIALOG_SW_OFF = "off";
+}
+
+if ( ! -x $DIALOG_BIN ) {
+  $DIALOG_BIN = "/usr/bin/dialog";
+  $DIALOG_SW_ON = "on";
+  $DIALOG_SW_OFF = "off";
+  if ( ! -x $DIALOG_BIN ) {
+    print "rcconf needs dialog or whiptail.\n";
+    exit 1;
+  }
+}
+
+## Try to get window size. If it seems good, set them
+if ( ( defined(&TIOCGWINSZ) ) && ( ! $opt_notermcheck ) ) {
+  my $winsize = "";
+  my $retval = ioctl(STDOUT,&TIOCGWINSZ,$winsize);
+  if ( $retval ) {
+    my ($height, $width, $xpixel, $ypixel) = unpack('S4', $winsize);
+    if ( ( $height > 4 ) && ( $width > 10 ) ) {
+      # some console may return 0 such as serial console, ignore in this case
+      $BOX_WIDTH = $width - 10;
+      $BOX_HEIGHT = $height - 4;
+      $BOX_LIST_HEIGHT = $BOX_HEIGHT - 10;
+    }
+  }
+}
+
+my $DIALOG_OPT = "--title \"$TITLE\" --separate-output --checklist \"\" $BOX_HEIGHT $BOX_WIDTH $BOX_LIST_HEIGHT ";
+
+if ( ( exists($ENV{'DIALOG_OPT'}) ) && ( $ENV{'DIALOG_OPT'} ne '' ) ) {
+  $DIALOG_OPT = $ENV{'DIALOG_OPT'};
+}
+
+## Read guidefile and prepare package descriptions.
+my $guide = &read_guidefile(file=>$DEFAULT_GUIDE_FILE);
+my $guide_tmp = &read_guidefile(file=>$GUIDE_FILE);
+foreach my $key ( %{$guide_tmp} ) {
+  $guide->{$key} = $guide_tmp->{$key};
+}
+undef $guide_tmp;
+
+&make_lock();
+
+my $rcdf = &read_rcd_default(root_dir=>$ETC_DIR);
+if ( $opt_showrcdf ) {
+  dump_rcd(rcdf=>$rcdf);
+  exit 0;
+}
+
+my $data = &read_data(file=>$DATA_FILE);
+my $cur_on = &select_default(rcdf=>$rcdf, data=>$data);
+my $initd = &read_initd_dir(root_dir=>$ETC_DIR);
+my $cur_off = &select_unlinked_initd(initd=>$initd, rcdf=>$rcdf, data=>$data,
+                                    unselects=>\@unselects);
+&update_services_data_initd(initd=>$initd, data=>$data, root_dir=>$ETC_DIR,
+                            unselects=>\@unselects);
+undef $initd;
+if ( ! $opt_expertmode ) {
+  $cur_on = &select_unmanaged_initd(initd=>$cur_on, unselects=>\@expertonly);
+  $cur_off = &select_unmanaged_initd(initd=>$cur_off, unselects=>\@expertonly);
+}
+
+## Calculate MENU width
+my $GUIDE_LENGTH = -1;
+my $ITEM_MAX_LENGTH = -1;
+&update_item_max_length(data=>$cur_on);
+&update_item_max_length(data=>$cur_off);
+## GUIDE_LENGTH = BOX_WIDTH - FIXED_LENGTH[16] - max(keys)
+## FIXED_LENGTH = left_edge[5] + mark[4] + key_list_gap[2] + right_edge[5]
+$GUIDE_LENGTH =  $BOX_WIDTH - 16 - $ITEM_MAX_LENGTH;
+
+my $ret; my $res;
+my $skip_exec = 0;
+if ( ( $opt_configfile ne "" ) && ( -f $opt_configfile ) ) {
+  ($ret, $res) = &read_config_file(file=>$opt_configfile);
+  if ( $ret == 0 ) {
+    ($ret, $res) = &set_config(on=>$cur_on, off=>$cur_off, set=>$res);
+  }
+} elsif ( ( $opt_onlist ne "" ) || ( $opt_offlist ne "" ) ) {
+  ## command line mode(set)
+  ($ret, $res) = &read_config_list(onstr=>$opt_onlist, offstr=>$opt_offlist);
+  if ( $ret == 0 ) {
+    ($ret, $res) = &set_config(on=>$cur_on, off=>$cur_off, set=>$res);
+  }
+} elsif ( $opt_showlist ) {
+  ## command line mode(list)
+  &show_config(on=>$cur_on, off=>$cur_off);
+  $skip_exec = 1;
+  $ret = 0;
+} else {
+  ## TUI mode
+  ($ret, $res) = &output_dialog(on=>$cur_on, off=>$cur_off, info=>$guide);
+}
+if ( ( $skip_exec == 0 ) && ( $ret == 0 ) ) {
+  my($res_on, $res_off) = &diff_result(on=>$cur_on, off=>$cur_off, res=>$res);
+  &exec_update(on=>$res_on, off=>$res_off, data=>$data);
+  &write_data(file=>$DATA_FILE, data=>$data);
+}
+
+&remove_lock();
+
+if ( $OUTPUT_FILE ne "" ) {
+  close(SAVE);
+}
+
+exit $ret;
+
+#######################################################################
+#######################################################################
+#######################################################################
+
+#######################################################################
+## MODULE: read_rcd_default
+## DESC: Read files in rc?.d(?:=0..6) directory and generate %rcdf.
+##         %rcdf->{'package'} -> [0]  service num in rc0.d/S??package
+##                               [1]
+##                               [2]
+##                               [3]
+##                               [4]
+##                               [5]
+##                               [6]
+##                               [7]    rcS.d/S??package
+##                               [10] service num in rc0.d/K??package
+##                               [11]   rc1.d/K??package
+##                               [12]   rc2.d/K??package
+##                               [13]   rc3.d/K??package
+##                               [14]   rc4.d/K??package
+##                               [15]   rc5.d/K??package
+##                               [16]   rc6.d/K??package
+##                               [17]   rcS.d/K??package
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_rcd_default {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $root_dir = $ref{'root_dir'};
+  my %rcdf = ();
+  my $dir;
+## rc?.d
+  my($start, $end);
+  for ( my $i = 0; $i <= 6; $i++ ) {
+    $dir = $root_dir."/rc".$i.".d";
+    ($start, $end) = &read_rc_dir(dir=>$dir);
+    &setup_rcd(rcdf=>\%rcdf, rcfile=>$start, dirnum=>$i, margin=>0);
+    &setup_rcd(rcdf=>\%rcdf, rcfile=>$end, dirnum=>$i, margin=>10);
+  }
+## rcS.d
+  $dir = $root_dir."/rcS.d";
+  ($start, $end) = &read_rc_dir(dir=>$dir);
+  &setup_rcd(rcdf=>\%rcdf, rcfile=>$start, dirnum=>7, margin=>0);
+  &setup_rcd(rcdf=>\%rcdf, rcfile=>$end, dirnum=>7, margin=>10);
+  return \%rcdf;
+} ## read_rcd_default
+
+#######################################################################
+## MODULE: read_rc_dir
+## DESC: Open directory specified in $dir, and list Start/Stop service
+##        @start [0] -> {file} -+- 'num'  service number
+##               [1]            +- 'name' file name
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_rc_dir{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $dir = $ref{'dir'};
+##
+  opendir(DIR, $dir) || die "No such directory: $!";
+##
+  my @starts = ();
+  my @stops = ();
+  my @dirs = readdir(DIR);
+  foreach ( @dirs ) {
+    if(/^S([0-9][0-9])(.*)$/){
+      push(@starts, &new_file(num=>$1, name=>$2));
+      next;
+    } ## if
+    if(/^K([0-9][0-9])(.*)$/){
+      push(@stops, &new_file(num=>$1, name=>$2));
+      next;
+    } ## if
+  } ## while()
+  closedir(DIR);
+  return(\@starts, \@stops);
+} ## read_rc_dir
+
+#######################################################################
+## MODULE: read_initd_dir
+## DESC: Collect files in init.d/ directory.
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_initd_dir{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $root_dir = $ref{'root_dir'};
+##
+  my $dir = $root_dir."/init.d";
+  opendir(DIR, $dir) || die "No such directory: $!";
+  my(@dirs) = readdir(DIR);
+  close(DIR);
+##
+  return \@dirs;
+} ## read_initd_dir
+
+#######################################################################
+## MODULE: select_unlinked_initd
+## DESC: Compare between %rcdf and @initd, and list file in init.d/
+##       directory which is not linked to rc?.d.
+##       Listed files are not serviced packages.
+##       We creates /etc/rc*.d/KNNname when it changes to off, so we
+##       also need it.
+## IN:
+## OUT: \@new_initd := not serviced packages
+## OP:
+## STATUS:
+## END:
+sub select_unlinked_initd{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $initd = $ref{'initd'};
+  my $rcdf = $ref{'rcdf'};
+  my $data = $ref{'data'};
+  my $unselects = $ref{'unselects'};
+##
+  my @new_initd = ();
+##
+  foreach my $key (@{$initd}){
+    next if ( &check_unselect(file=>$key, unselects=>$unselects) );
+    if ( ! exists($rcdf->{$key}) ) {
+      push(@new_initd, $key);
+    } elsif ( ( $rcdf->{$key}->[0] == -1 ) &&
+              ( $rcdf->{$key}->[1] == -1 ) &&
+              ( $rcdf->{$key}->[2] == -1 ) &&
+              ( $rcdf->{$key}->[3] == -1 ) &&
+              ( $rcdf->{$key}->[4] == -1 ) &&
+              ( $rcdf->{$key}->[5] == -1 ) &&
+              ( $rcdf->{$key}->[6] == -1 ) &&
+              ( $rcdf->{$key}->[7] == -1 ) ) {
+      if ( ( exists($data->{$key}) ) && ( $data->{$key}->{'start'} ne "x" ) ) {
+        ## non-defaults and defaults-number packages
+        push(@new_initd, $key);
+      } elsif ( ( $rcdf->{$key}->[10] == $rcdf->{$key}->[11] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[12] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[13] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[14] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[15] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[16] ) &&
+                ( $rcdf->{$key}->[10] == 0 ) ) {
+        ## defaults packages
+        push(@new_initd, $key);
+      } elsif ( ( $rcdf->{$key}->[10] == $rcdf->{$key}->[11] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[12] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[13] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[14] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[15] ) &&
+                ( $rcdf->{$key}->[10] == $rcdf->{$key}->[16] ) ) {
+        ## off state packages by 'update-rc.d disable'
+        push(@new_initd, $key);
+      }
+    }
+  }
+  return \@new_initd;
+} ## select_unlinked_initd()
+
+#######################################################################
+## MODULE: check_unselect
+## DESC: Check if 'file' exists in unselects array.
+## IN:
+## OUT:  results 0 := file is not in the array.
+##               1 := file exists in the array.
+## OP:
+## STATUS:
+## END:
+sub check_unselect{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $file = $ref{'file'};
+  my $unselects = $ref{'unselects'};
+
+  return 1 if ( ! -x $ETC_DIR . "/init.d/" . $file );
+
+  foreach my $unselect (@{$unselects}){
+    return 1 if($file =~ /$unselect/);
+  }
+  return 0;
+} ## check_unselect()
+
+#######################################################################
+## MODULE: select_unmanaged_initd
+## DESC: Remove unmanaged initd from @initd compared with unselects list.
+## IN:
+## OUT: \@new_initd := not serviced packages
+## OP:
+## STATUS:
+## END:
+sub select_unmanaged_initd {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $initd = $ref{'initd'};
+  my $unselects = $ref{'unselects'};
+##
+  my @new_initd = ();
+  my $unselect;
+##
+  foreach my $key ( @{$initd} ) {
+    next if ( &check_unselect(file=>$key, unselects=>$unselects) );
+    push(@new_initd, $key);
+  }
+  return \@new_initd;
+} ## select_unmanaged_initd()
+
+#######################################################################
+## MODULE: new_file
+## DESC: Generate new package file
+##        'num'  => service number
+##        'name' => package name(filename)
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub new_file{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my %new = ();
+  $new{'num'} = $ref{'num'};
+  $new{'name'} = $ref{'name'};
+  return \%new;
+} ## new_file()
+
+#######################################################################
+## MODULE: new_rcd
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub new_rcd{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my @rcd = ();
+  for ( my $i = 0; $i <= 7; $i++ ) {
+    $rcd[$i] = -1;       ## start
+    $rcd[$i + 10] = -1;  ## end
+  }
+  return \@rcd;
+} ## new_rc()
+
+#######################################################################
+## MODULE: setup_rcd
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub setup_rcd{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $rcdf = $ref{'rcdf'};
+  my $rcfile = $ref{'rcfile'};
+  my $dirnum = $ref{'dirnum'};
+  my $margin = $ref{'margin'};
+##
+  my $package; my $num;
+  foreach my $file ( @{$rcfile} ) {
+    $package = $file->{'name'};
+    $num = $file->{'num'};
+    if ( $DEBUG == 1 ) {
+      print $package." ".$num." $margin $dirnum\n";
+    }
+    if(! exists($rcdf->{$package})){
+      $rcdf->{$package} = &new_rcd();
+      if ( $DEBUG == 1 ) {
+         print "Generate ".$package."\n";
+       }
+    }
+    $rcdf->{$package}->[$dirnum+ $margin] = $num;
+  } ## foreach
+} ## setup_rcd()
+
+#######################################################################
+## MODULE: dump_rcd
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub dump_rcd{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $rcdf = $ref{'rcdf'};
+##
+  my $i;
+  printf "                           Start                     Stop\n";
+  printf "%-20s ","Package Name";
+  print " 0  1  2  3  4  5  6  S     0  1  2  3  4  5  6  S\n";
+  print '-' x 71 ."\n";
+  foreach my $package (keys(%{$rcdf})){
+    printf "%-20s ", $package;
+    for ( $i = 0; $i <= 7; $i++ ) {
+      printf "%2d ", $rcdf->{$package}->[$i];
+    }
+    print "   ";
+    for ( $i = 0; $i <= 7; $i++ ) {
+      printf "%2d ", $rcdf->{$package}->[$i + 10];
+    }
+    print "\n";
+  } ## foreach $package
+} ## dump_rcd()
+
+#######################################################################
+## MODULE: select_default
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub select_default{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $rcdf = $ref{'rcdf'};
+  my $data = $ref{'data'};
+##
+  my $link ;
+  my @select = ();
+  my $start_num; my $stop_num;
+  foreach my $package ( keys(%{$rcdf}) ) {
+    $link = $rcdf->{$package};
+    $start_num = $link->[2];
+    $stop_num = $link->[10];
+    if ( ( $start_num != -1 ) && ( $stop_num != -1 ) &&
+         ( $link->[3] == $start_num ) &&
+         ( $link->[4] == $start_num ) &&
+         ( $link->[5] == $start_num ) &&
+         ( $link->[11] == $stop_num ) &&
+         ( $link->[16] == $stop_num ) ) {
+      push(@select, $package);
+      if ( ( $start_num != $DEFAULT_RCNUM ) ||
+           ( $stop_num != $DEFAULT_RCNUM ) ) {
+        ## defaults-number packages
+        $data->{$package}->{'start'} = $start_num;
+        $data->{$package}->{'stop'} = $stop_num;
+      }
+    } else {
+      ## check for non-defaults packages
+      my $start_str = "";
+      my $stop_str = "";
+      my $symbol;
+      my $num_str;
+      my %start_hash = ();
+      my %stop_hash = ();
+      for ( my $i = 0; $i < 8; $i++ ) {
+        $symbol = ($i == 7) ? "S" : $i;
+        ## check for S:start numbers
+        if ( $link->[$i] != -1 ) {
+          $num_str = sprintf("%02d", $link->[$i]);
+          if ( ( ! exists($start_hash{$num_str}) ) ||
+               ( $start_hash{$num_str} eq "" ) ) {
+            $start_hash{$num_str} = $num_str;
+          }
+          $start_hash{$num_str} .= ":" . $symbol;
+        }
+        ## check for K:kill(stop) numbers
+        if ( $link->[$i + 10] != -1 ) {
+          $num_str = sprintf("%02d", $link->[$i + 10]);
+          if ( ( ! exists($stop_hash{$num_str}) ) ||
+               ( $stop_hash{$num_str} eq "" ) ) {
+            $stop_hash{$num_str} = $num_str;
+          }
+          $stop_hash{$num_str} .= ":" . $symbol;
+        }
+      } ## for
+      $start_str = services_string(hash=>\%start_hash);
+      $stop_str = services_string(hash=>\%stop_hash);
+      if ( $start_str ne "" ) {
+        $data->{$package}->{'start'} = $start_str;
+        $data->{$package}->{'stop'} = ( $stop_str ne "" ) ? $stop_str : "x";
+        push(@select, $package);
+      }
+    } ## if
+  } ## foreach
+  return \@select;
+} ## select_default()
+
+#######################################################################
+## MODULE: services_string
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub services_string {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $str = "";
+  my $hash = $ref{'hash'};
+  foreach my $key ( keys(%{$hash}) ) {
+    $str .= "," if ( $str ne "" );
+    $str .= $hash->{$key};
+  } ## foreach
+  return $str;
+##
+} ## services_string()
+
+#######################################################################
+## MODULE: output_dialog
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub output_dialog{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $on = $ref{'on'};
+  my $off = $ref{'off'};
+  my $info = $ref{'info'};
+##
+  my @res = ();
+  my $list = " ".&generate_dialoglist(package=>$on, sw=>$DIALOG_SW_ON,
+                                 info=>$info);
+  $list .= " ".&generate_dialoglist(package=>$off, sw=>$DIALOG_SW_OFF,
+                              info=>$info);
+  my $exec = $DIALOG_BIN." ".$DIALOG_OPT.$list;
+  ##
+  my $ret  = system($exec." 2>$TMP_FILE");
+  if ( ( $ret != 0 ) && ( $ret != 1 ) ) {
+    print STDERR "Cancelled or $DIALOG_BIN execution error($ret)\n";
+    return($ret, \@res);
+  }
+  ## 'dialog' return 0 if exit by pressing 'OK'
+  if ( $ret == 0 ) {
+    open(RES, $TMP_FILE) || die "Exec error:$!";
+    while(<RES>){
+      chomp;
+      ## strip quoted string  "package" or 'package'
+      if ( /^\"(.*)\"$/ ) {
+        $_ = $1;
+      } elsif ( /^\'(.*)\'$/ ) {
+        $_ = $1;
+      }
+      push(@res, $_);
+    }
+    close(RES);
+  }
+  unlink $TMP_FILE;
+  return($ret, \@res);
+} ## output_dialog()
+
+#######################################################################
+## MODULE: generate_dialoglist
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub generate_dialoglist {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $package = $ref{'package'};
+  my $sw = $ref{'sw'};
+  my $info = $ref{'info'};
+##
+  my $list = "";
+  my $str;
+  for my $key ( sort(@{$package}) ) {
+    $str = "";
+    if ( exists($info->{$key}) ) {
+      $str = ( $GUIDE_LENGTH > 0 ) ? substr($info->{$key}, 0, $GUIDE_LENGTH)
+        : $info->{$key};
+    }
+    $key =~ s/\'/\"/g;
+    $str =~ s/\'/\"/g;
+    $list .= "'".$key."' "." '".$str."' '".$sw."' ";
+  }
+  return $list;
+} ## generate_dialoglist()
+
+#######################################################################
+## MODULE: read_guidefile
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_guidefile{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $file = $ref{'file'};
+##
+  my %guide = ();
+  my $key; my $guideline;
+  open(IN, $file) || return \%guide;
+  while(<IN>){
+    chomp;
+    /^(\S+)\s+(.*)/;
+    $key = $1;
+    $guideline = $2;
+    $guide{$key} = $guideline;
+  } ## while(<IN>)
+  return \%guide;
+} # read_guidefile()
+
+#######################################################################
+## MODULE: diff_result
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub diff_result{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $on = $ref{'on'};
+  my $off = $ref{'off'};
+  my $res = $ref{'res'};
+##
+  my %hash = ();
+  my @res_on = ();
+  my @res_off = ();
+  my $key;
+  foreach $key (@{$res}){
+    $hash{$key} = "OK";
+  }
+  foreach $key ( @{$on} ) {
+    if ( ! exists($hash{$key}) ) {
+      push(@res_off, $key);
+    } else {
+      $hash{$key} = "ON";
+    }
+  }
+  foreach $key ( @{$off} ) {
+    if ( exists($hash{$key}) ) {
+      push(@res_on, $key);
+      $hash{$key} = "OFF";
+    }
+  }
+  foreach $key ( keys(%hash) ) {
+    if ( $hash{$key} eq "OK" ) {
+      ## ERROR
+      print STDERR "Illegal string(".$key.") received from $DIALOG_BIN\n";
+      exit 1;
+    }
+  }
+  return(\@res_on, \@res_off);
+} ## diff_result()
+
+#######################################################################
+## MODULE: exec_update
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub exec_update{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $on = $ref{'on'};
+  my $off = $ref{'off'};
+  my $data = $ref{'data'};
+##
+  my $key;
+  my $command;
+  my $pn;
+
+  foreach $key ( @{$on} ) {
+    if ( ( exists($data->{$key}) ) &&
+         ( $data->{$key}->{'start'} eq "z" ) &&
+         ( $data->{$key}->{'stop'} eq "z" ) ) {
+      $command .= $UPDATE_RCD_PATH . " " . $key . " enable ";
+    } else {
+      $command = $UPDATE_RCD_PATH." -f ".$key." remove $DEBUG_STRING ";
+      if ( ( exists($data->{$key}) ) &&
+           ( ( $data->{$key}->{'start'} =~ /[:x]/ ) ||
+             ( $data->{$key}->{'stop'} =~ /[:x]/ ) ) ) {
+        $command .= " ; " . $UPDATE_RCD_PATH." ".$key;
+        if ( $data->{$key}->{'start'} ne "x" ) {
+          $command .= extract_services_data(str=>$data->{$key}->{'start'},
+                                            head=>'start');
+        }
+        if ( $data->{$key}->{'stop'} ne "x" ) {
+          $command .= extract_services_data(str=>$data->{$key}->{'stop'},
+                                            head=>'stop');
+        }
+      } else {
+        $command .= " ; " . $UPDATE_RCD_PATH." ".$key." defaults";
+        if ( exists($data->{$key}) ) {
+          $command .= " ".$data->{$key}->{'start'}." ".$data->{$key}->{'stop'};
+        }
+      }
+    }
+    $command .= " $DEBUG_STRING";
+    if ( $NO_EXECUTE eq '' ) {
+      if ( $DEBUG == 1 ) {
+        print STDERR $command."\n";
+      }
+      print SAVE "$key on\n" if($OUTPUT_FILE ne '');
+      system($command);
+      if ( $RUN_SCRIPTS == 1 ) {
+        system($INVOKERC_BIN." ".$key." start");
+      }
+    }else{
+      print STDERR "DRYRUN: ".$command."\n";
+    }
+  }
+  foreach $key ( @{$off} ) {
+    if ( exists($data->{$key}) ) {
+      ## non-defaults and defaults-number packages
+      if ( $data->{$key}->{'stop'} ne "x" ) {
+        my @array = split(/:/, $data->{$key}->{'stop'});
+        $pn = $array[0];
+      } else {
+        $pn = "";
+      }
+    } else {
+      ## defaults packages
+        $pn = "00";
+    }
+    if ( $data->{$key}->{'stop'} eq "z" ) {
+      $command .= $UPDATE_RCD_PATH . " " . $key . " disable $DEBUG_STRING ";
+    } else {
+      $command = $UPDATE_RCD_PATH." -f ".$key." remove $DEBUG_STRING ";
+      if ( $pn ne "" ) {
+        $command .= " ; " . $UPDATE_RCD_PATH." ".$key." stop " .
+          $pn . " 0 1 2 3 4 5 6 . $DEBUG_STRING ";
+      }
+    }
+
+#    $command .= " $DEBUG_STRING";
+    if ( $NO_EXECUTE eq '' ) {
+      if ( $DEBUG == 1 ) {
+        print STDERR $command."\n";
+      }
+      print SAVE "$key off\n" if($OUTPUT_FILE ne '');
+
+      system($command);
+
+      if ( $RUN_SCRIPTS == 1 ) {
+        system($INVOKERC_BIN." ".$key." stop");
+      }
+    }else{
+      print STDERR "DRYRUN: ".$command."\n";
+    }
+  }
+} ## exec_update()
+
+#######################################################################
+## MODULE: extract_services_data
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub extract_services_data {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $str = $ref{'str'};
+  my $head = $ref{'head'};
+  $str =~ s/:/ /g;
+  $str =~ s/,/ \. $head /g;
+  return " " . $head . " " . $str . " . ";
+} ## extract_services_data()
+
+#######################################################################
+## MODULE: update_services_data_initd
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub update_services_data_initd {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $root_dir = $ref{'root_dir'};
+  my $initd = $ref{'initd'};
+  my $data = $ref{'data'};
+##
+  my $dir = $root_dir."/init.d";
+  foreach my $key (@{$initd}){
+    next if ( ! exists($data->{$key}) );
+    next if ( ! -f $dir."/".$key );
+    $data->{$key}->{'exists'} = 1;
+    open(IN,$dir."/".$key) || next;
+    while(<IN>){
+      if ( /\#\s*Default-Start:/ ) {
+        if ( exists($data->{$key}->{'start'}) ) {
+          $data->{$key}->{'start'} = 'z';
+        }
+        next;
+      }
+      if ( /\#\s*Default-Stop:/ ) {
+        if ( exists($data->{$key}->{'stop'}) ) {
+          $data->{$key}->{'stop'} = 'z';
+        }
+        next;
+      }
+    } ## while <IN>
+    close(IN);
+  } ## foreach $key
+} ## extract_services_data()
+
+#######################################################################
+## MODULE: read_data
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_data{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my %data = ();
+##
+  open(IN, $ref{'file'}) || return \%data;
+##
+  while(<IN>){
+    next if ( /^\#/ );
+    if ( /^([0-9,:xzS]+)\s+([0-9,:xzS]+)\s+(\S+)/ ) {
+      $data{$3}->{'start'} = $1;
+      $data{$3}->{'stop'} = $2;
+    } elsif ( /^([0-9][0-9])\s+([0-9][0-9])\s+(\S+)/ ) {
+      $data{$3}->{'start'} = $1;
+      $data{$3}->{'stop'} = $2;
+    } elsif ( /^([0-9][0-9])\s+(\S+)/ ) {
+      $data{$2}->{'start'} = $1;
+      $data{$2}->{'stop'} = $1;
+    } else {
+      print STDERR $ref{'file'}.": skipping unrecognized line: \"$_\"\n";
+    }
+  } ## while(<IN>)
+  close(IN);
+  return \%data;
+} ## read_data()
+
+#######################################################################
+## MODULE: read_config_file
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_config_file{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $tag;
+  my $value;
+  my $ret = 0;
+  my %data = ();
+  use FileHandle;
+  my $rfh = FileHandle->new($ref{'file'});
+  if ( ! defined($rfh) ) {
+    print STDERR "File open error".$ref{'file'}."\n";
+    return(1, 0);
+  }
+  my $lineno = 0;
+  while(<$rfh>){
+    $lineno ++;
+    s/\r?\n$//;
+    next if(/^$/ || /^\#/);
+    ($tag, $value) = split(/\s+/);
+    if ( $value =~ /^on$/i ) {
+      $value = 1;
+    } elsif ( $value =~ /^off$/i ) {
+      $value = 0;
+    } else {
+      print STDERR $ref{'file'}.": format error in line $lineno.\n";
+      $ret = 1;
+    }
+    $data{$tag} = $value;
+  }
+  $rfh->close();
+  undef($rfh);
+  return($ret, \%data);
+} ## read_config_file()
+
+#######################################################################
+## MODULE: read_config_list
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub read_config_list {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $onstr = $ref{'onstr'};
+  my $offstr = $ref{'offstr'};
+##
+  my %set_hash = ();
+  my $service;
+  my $ret = 0;
+  foreach $service ( split(',', $onstr) ) {
+    if ( exists($set_hash{$service}) ) {
+      print STDERR "service '$service' is already set on on-list.\n";
+    }
+    $set_hash{$service} = 1;
+  }
+  foreach $service ( split(',', $offstr) ) {
+    if ( exists($set_hash{$service}) ) {
+      print STDERR "service '$service' is already set on on-list or off-list.\n";
+    }
+    $set_hash{$service} = 0;
+  }
+  return($ret, \%set_hash);
+} ## read_config_list()
+
+#######################################################################
+## MODULE: set_config
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub set_config{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $on = $ref{'on'};
+  my $off = $ref{'off'};
+  my $set = $ref{'set'};
+##
+  my $on_hash = &array2hash(array=>$on, value=>'1');
+  my $off_hash = &array2hash(array=>$off, value=>'0');
+##
+  my $key;
+  my $ret = 0;
+  foreach $key ( keys(%{$set}) ) {
+    if ( ( ! exists($off_hash->{$key}) ) && ( ! exists($on_hash->{$key}) ) ) {
+      print STDERR "Service '$key' doesn't exist.\n";
+      $ret = 1;
+      next;
+    }
+    if ( $set->{$key} == 1 ) {
+      if ( exists($off_hash->{$key}) ) {
+        $on_hash->{$key} = '1';
+      } else {
+        print STDERR "Service '$key' is already on. Skipping...\n";
+      }
+    } elsif ( $set->{$key} == 0 ) {
+      if ( exists($on_hash->{$key}) ) {
+        $on_hash->{$key} = '0';
+      } else {
+        print STDERR "Service '$key' is already off. Skipping...\n";
+      }
+    }
+  }
+  my @res = ();
+  foreach $key ( keys(%{$on_hash}) ) {
+    push(@res, $key) if($on_hash->{$key} == 1);
+  }
+  return($ret, \@res);
+} ## set_config()
+
+#######################################################################
+## MODULE: show_config
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub show_config {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $on = $ref{'on'};
+  my $off = $ref{'off'};
+  my $set = $ref{'set'};
+##
+  foreach my $key ( @{$on} ) {
+    print $key." on\n";
+  }
+  foreach my $key ( @{$off} ) {
+    print $key." off\n";
+  }
+} ## show_config()
+
+#######################################################################
+## MODULE: array2hash
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub array2hash{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $array = $ref{'array'};
+  my $value = $ref{'value'};
+##
+  my %hash = ();
+  foreach my $key (@{$array}){
+    $hash{$key} = $value;
+  }
+  return \%hash;
+} ## array2hash()
+
+#######################################################################
+## MODULE: write_data
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub write_data{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $file = $ref{'file'};
+  my $data = $ref{'data'};
+  open(OUT, "> ".$file) || die "Cannot write file $file: $!";
+  foreach my $key (keys(%{$data})){
+    next if ( ! exists($data->{$key}->{'exists'}) );
+    print OUT $data->{$key}->{'start'}." ".
+      $data->{$key}->{'stop'}." ".
+        $key."\n";
+  }
+  close(OUT);
+} ## write_data()
+
+#######################################################################
+## MODULE: update_itme_max_length
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub update_item_max_length {
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  my $package = $ref{'data'};
+##
+  for my $key ( @{$package} ) {
+    if ( length($key) > $ITEM_MAX_LENGTH ) {
+      $ITEM_MAX_LENGTH = length($key);
+    }
+  }
+} ## update_item_max_length()
+
+#######################################################################
+## MODULE: make_lock
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub make_lock{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  if ( -f $LOCK_FILE ) {
+    die "Another rcconf is running, or still remain lock file($LOCK_FILE).";
+  }
+  open(LOCK, "> ".$LOCK_FILE) || die "Can't create lock($LOCK_FILE).";
+  close(LOCK);
+} ## make_lock()
+
+#######################################################################
+## MODULE: remove_lock
+## DESC:
+## IN:
+## OUT:
+## OP:
+## STATUS:
+## END:
+sub remove_lock{
+  my($self) = shift if(defined($_[0]) && (ref($_[0]) ne ''));
+  my(%ref) = @_;
+##
+  unlink($LOCK_FILE);
+} ## remove_lock
