@@ -7,17 +7,14 @@
 
 ## 安装
 
-1. 下载该[软件包](https://github.com/liangchaob/uconfig/archive/master.zip)， 并将该软件包解压重命名为uconfig
+1.下载该[软件包](https://github.com/liangchaob/uconfig/archive/master.zip)， 并将该软件包解压重命名为uconfig
 
-2. ssh到需要配置的主机上，将该软件包uconfig上传到需要配置的linux主机上
+2.ssh到需要配置的主机上，将该软件包uconfig上传到需要配置的linux主机上
 
-3. 切换到root权限，执行以下命令:
+3.切换到root权限，执行以下命令:
 
-
-    alias uconfig='python /opt/uconfig/app/main.py'
-    bash ./uconfig/install.sh
-
-
+        alias uconfig='python /opt/uconfig/app/main.py'
+        bash ./uconfig/install.sh
 
 *如果是linux主机本身是联网状态，而且安装了git，可以直接执行以下命令：
 
