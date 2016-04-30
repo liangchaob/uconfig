@@ -13,8 +13,8 @@
 
 3.切换到root权限，执行以下命令:
 
-        alias uconfig='python /opt/uconfig/app/main.py'
-        bash ./uconfig/install.sh
+    alias uconfig='python /opt/uconfig/app/main.py'
+    bash ./uconfig/install.sh
 
 *如果是linux主机本身是联网状态，而且安装了git，可以直接执行以下命令：
 
