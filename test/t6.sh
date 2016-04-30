@@ -46,6 +46,18 @@ DNS=172.16.191.2
 echo 'nameserver '${DNS} > /etc/resolv.conf;echo 'search localdomain' >> /etc/resolv.conf;
 
 
+APP=mysql
+apt-cache search $APP |grep ${APP}
+
+
+
+
+mount /dev/cdrom /media/cdrom
+apt-cdrom -m -d /media/cdrom/ add apt-cdrom
+
+
+
+
 
 
 

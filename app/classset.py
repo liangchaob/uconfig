@@ -112,6 +112,10 @@ class SetNetwork(object):
         self.config_mask = config_mask
         self.config_gateway = config_gateway
         self.config_dns = config_dns
+    # 查询dns设置
+    def getDns(self):
+        command = getDict(SYSID,'network','get_dns')
+        exe(command)
     # 设置主机名
     def ethList(self):
         # 列出所有网卡设置
@@ -176,33 +180,50 @@ class SetSystem(object):
     def setPort(self):
         command = getDict(SYSID,'system','set_port')
         exe(command)
-            
     # 设置正在运行进程
     def setPs(self):
         command = getDict(SYSID,'system','set_ps')
         exe(command)
-        print ''
 
 
 
 # 软件设置类
 class SetSoftware(object):
     """用于做软件安装的类"""
-    def __init__(self, sources = ''):
+    def __init__(self, sources = '',search_software = '',install_software = '',remove_software = ''):
         self.sources = sources
+        self.search_software = search_software
+        self.install_software = install_software
+        self.remove_software = remove_software
+    # 获取源
     def setSource(self):
         command = getDict(SYSID,'software','sources-backup')
         exe(command)
-        if self.sources == '阿里云':
-            command = getDict(SYSID,'software','sources-change-aliyun')
+        if self.sources == 'aliyun':
+            command = getDict(SYSID,'software','sources-change-aliyun') + getDict(SYSID,'software','sources-update')
             exe(command)
         elif self.sources == '163':
-            command = getDict(SYSID,'software','sources-change-163')
+            command = getDict(SYSID,'software','sources-change-163') + getDict(SYSID,'software','sources-update')
             exe(command)
-        elif self.sources == '本地光驱':
-            pass
         else:
             pass
+    # 搜索软件
+    def search(self):
+        set_var = 'APP=' + self.search_software + ';'
+        command = set_var + getDict(SYSID,'software','search_software')
+        exe(command)
+
+    # 安装软件
+    def install(self):
+        set_var = 'APP=' + self.install_software + ';'
+        command = set_var + getDict(SYSID,'software','install_software')
+        exe(command)
+
+    # 卸载软件
+    def remove(self):
+        set_var = 'APP=' + self.remove_software + ';'
+        command = set_var + getDict(SYSID,'software','remove_software')
+        exe(command)
 
 
 

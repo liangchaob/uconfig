@@ -7,6 +7,7 @@
         },
     "network":{
         "list_eth":"ifconfig -a",
+        "get_dns":"cat /etc/resolv.conf",
         "reset_eth":"ifdown $IFACE;ifup $IFACE",
         "set_ip":"echo 'DEVICE='${IFACE}''> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
             echo 'IPADDR='${IPADDR}''>> /etc/sysconfig/network-scripts/ifcfg-${IFACE};
@@ -25,12 +26,16 @@
         "change_hostname":"hostname $HOSTNAME;echo $HOSTNAME > /etc/hostname",
         "set_data":"date -s \"$TIME\"",
         "set_initd":"ntsysv",
-        "set_port":"netstat -antp"
+        "set_port":"netstat -antp",
+        "set_ps":"ps -ef | more"
         },
     "software":{
-        "sources-backup":"mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup",
-        "sources-change-aliyun":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-6.repo",
-        "sources-change-163":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.163.com/.help/CentOS6-Base-163.repo",
-        "sources-update":"yum clean all;yum makecache"
+        "sources-backup":"mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak;",
+        "sources-change-aliyun":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-6.repo;",
+        "sources-change-163":"wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.163.com/.help/CentOS6-Base-163.repo;",
+        "sources-update":"yum clean all;yum makecache",
+        "search_software":"yum search $APP |grep $APP",
+        "install_software":"yum install $APP",
+        "remove_software":"yum remove $APP"
         }
 }

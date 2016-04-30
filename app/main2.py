@@ -17,12 +17,14 @@ VERSION = "v0.1.0"
 
 HELPINFO = '''\
     参数如下:
-        1. 用户配置-----负责用户的添加、删除、用户密码、用户权限等设置
-        2. 网络配置-----负责网络接口、IP地址、防火墙、dns等网络相关设置
-        3. 系统配置-----负责主机名、时间、启动脚本、程序与进程等系统相关设置
-        4. 软件配置-----负责软件源、安装、更新、卸载等设置
-        5. 当前版本号
-        6. 退出\
+      -init    : 按步骤全部重新配置
+      -user    : 用户配置,负责用户的添加、删除、用户密码、用户权限等设置
+      -network : 网络配置,负责网络接口、IP地址、防火墙、dns等网络相关设置
+      -system  : 系统配置,负责主机名、时间、启动脚本、程序与进程等系统相关设置
+      -software: 软件配置,负责软件源、安装、更新、卸载等设置
+      -update  : 更新uconfig自身
+      -version : 显示当前uconfig版本号
+      -help    : 显示帮助信息\
       '''
 
 # 导入os模块
@@ -78,20 +80,34 @@ print "*********************************"
 
 
 
+
+
+
+
+
+
 # 假设确定好了对应ubuntu的话
 
 # 主函数
 def main():
-    while True:
-        # 显示信息
+    # 设置参数
+    # 如果没参数
+    if len(sys.argv)<2:
         print HELPINFO
-        option1=raw_input("输入设置项(1/2/3/4/5/6):")
+        sys.exit()
+
+    #如果设置的第一个参数以'--'开始
+    if sys.argv[1].startswith('-'):
+        option=sys.argv[1][1:]
         # 匹配opt选择的各个参数
-        if option1=='5':
+        if option=='version':
             print 'Version '+ VERSION
-            continue
+        elif option=='help':
+            print HELPINFO
+        elif option=='init':
+            print '初始化'
         # 设置用户
-        elif option1=='1':
+        elif option=='user':
             while True:
                 print '''\
 ----------------------------------------------
@@ -101,11 +117,11 @@ def main():
                 p = SetUser()
                 p.userList()
                 print '''\
-    用户设置:
-        1.添加用户
-        2.删除用户
-        3.重置用户密码
-        4.退回上级
+                用户设置:
+                1.添加用户
+                2.删除用户
+                3.重置用户密码
+                4.退出
                 '''
                 # 添加用户
                 option2 = raw_input("输入设置项(1/2/3/4):")
@@ -129,25 +145,21 @@ def main():
                     break
                 else:
                     print "输入有误！重新输入"
-            continue
 
         # 设置网络
-        elif option1=='2':
+        elif option=='network':
             while True:
                 print '''\
 ----------------------------------------------
                 '''
-                print '当前DNS:'
-                p = SetNetwork()
-                p.getDns()                
                 print '当前网络设置:'
                 p = SetNetwork()
                 p.ethList()
                 print '''\
-    用户设置:
-        1.修改ip设置
-        2.设置dns
-        3.退回上级
+                用户设置:
+                1.修改ip设置
+                2.设置dns
+                3.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
                 # 设置新的ip
@@ -186,31 +198,27 @@ def main():
                     break
                 else:
                     print "输入有误！重新输入"
-            continue
 
-        elif option1=='3':
+        elif option=='system':
             while True:
                 print '''\
 ----------------------------------------------
-    系统设置:
-        1.主机名
-        2.时间设置
-        3.开机启动项管理
-        4.查看端口占用
-        5.查看运行进程
-        6.退回上级
+                系统设置:
+                1.主机名
+                2.时间设置
+                3.开机启动项管理
+                4.查看端口占用
+                5.查看运行进程
+                6.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4/5/6):")
                 # 主机名选项
                 if option2 == '1':
                     host_name = raw_input("输入主机名:")
-                    if host_name == '':
-                        break
-                    else:
-                        print '新的主机名将为:' + host_name
-                        # 设置新的主机名具体操作
-                        p = SetSystem(hostname=host_name)
-                        p.setHost()
+                    print '新的主机名将为:' + host_name
+                    # 设置新的主机名具体操作
+                    p = SetSystem(hostname=host_name)
+                    p.setHost()
                 # 时间设置选项
                 elif option2 == '2':
                     print '设置时间'
@@ -247,9 +255,8 @@ def main():
                     break
                 else:
                     print "输入有误！重新输入"
-            continue
         # 管理软件
-        elif option1=='4':
+        elif option=='software':
             while True:
                 print '''\
 ----------------------------------------------
@@ -257,23 +264,25 @@ def main():
                 print '设置当前软件:'
 
                 print '''\
-    用户设置:
-        1.修改软件源
-        2.安装软件
-        3.卸载软件
-        4.退回上级
+                用户设置:
+                1.修改软件源
+                2.安装软件
+                3.卸载软件
+                4.退出
                 '''
                 option2 = raw_input("输入设置项(1/2/3/4):")
                 if option2 == '1':
-                    set_source = raw_input("输入网络源选项(1.阿里云/2.163):")
+                    set_source = raw_input("输入网络源选项(1.阿里云/2.163/3.本地光驱):")
                     pass
                     if set_source == '1':
-                        source = "aliyun"
+                        source = "阿里云"
                     elif set_source == '2':
                         source = "163"
+                    elif set_source == '3':
+                        source = "本地光驱"
                     else:
                         source ="无效"
-                    p = SetSoftware(sources=source)
+                    p = SetSoftware(sources=set_source)
                     p.setSource()
                     print "当前源设置为:" + source
                 elif option2 == '2':
@@ -293,15 +302,27 @@ def main():
                     break
                 else:
                     print "输入有误！重新输入"
-            continue
 
-        elif option1=='6':
-            break
+        elif option=='update':
+            print '更新'
         else:
             print '无该选项!'
         sys.exit()
+    else:
+        for filename in sys.argv[1:]:
+            readfile(filename)
 
 
+# 读文件测试
+def readfile(filename):
+    '''Print a file to the standard output.'''
+    f = file(filename)
+    while True:
+        line = f.readline()
+        if len(line) == 0:
+            break
+        print line, # notice comma
+    f.close()
 
 
 # 运行主函数

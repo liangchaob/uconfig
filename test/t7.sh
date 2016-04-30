@@ -34,3 +34,8 @@ BOOTPROTO=DHCP
 
 DNS=172.16.191.2
 echo 'nameserver '${DNS} > /etc/resolv.conf;echo 'search localdomain' >> /etc/resolv.conf;
+
+
+
+APP=mysql
+yum search $APP |grep ${APP}
