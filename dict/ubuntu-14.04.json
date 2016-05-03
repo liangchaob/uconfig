@@ -15,6 +15,7 @@
                 ETH='iface '${IFACE}' inet';
                 T1='auto '${IFACE};
                 T2=${ETH}' static';
+                if cat /etc/network/interfaces |grep -c ${IFACE}; then echo found; else echo 'auto '${IFACE}>>/etc/network/interfaces; fi;
                 sed -i \"/$ETH/,/auto/{/auto/b;d}\" /etc/network/interfaces;
                 sed -i \"/$T1/a$T2\" /etc/network/interfaces;
                 sed -i \"/$ETH/a$GATEWAY\" /etc/network/interfaces;
